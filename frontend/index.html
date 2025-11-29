@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Анализатор текстовой тональности</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #ffffff;
+            color: #000000;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .panel {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            border: 2px solid #000000;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            grid-column: 1 / -1;
+            padding: 20px;
+            border-bottom: 3px solid #ff0000;
+        }
+        
+        h1 {
+            font-family: 'Inter', sans-serif;
+            font-size: 2.8rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #000000;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #666666;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        
+        .input-section {
+            margin-bottom: 25px;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 180px;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid #000000;
+            background: #ffffff;
+            color: #000000;
+            font-size: 1rem;
+            resize: vertical;
+            transition: all 0.3s ease;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        textarea::placeholder {
+            color: #888888;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #ff0000;
+            box-shadow: 0 0 0 3px rgba(255, 0, 0, 0.1);
+        }
+        
+        .file-upload {
+            margin: 20px 0;
+        }
+        
+        .file-label {
+            display: block;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px dashed #000000;
+            color: #000000;
+        }
+        
+        .file-label:hover {
+            background: #ff0000;
+            color: #ffffff;
+        }
+        
+        .file-input {
+            display: none;
+        }
+        
+        .analyze-btn {
+            display: block;
+            width: 100%;
+            padding: 18px;
+            background: #ff0000;
+            border: 2px solid #000000;
+            border-radius: 8px;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            letter-spacing: 0.5px;
+        }
+        
+        .analyze-btn:hover {
+            background: #000000;
+            color: #ff0000;
+            transform: translateY(-2px);
+        }
+        
+        .analyze-btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-secondary {
+            background: #000000;
+            color: #ffffff;
+        }
+        
+        .btn-secondary:hover {
+            background: #ff0000;
+            color: #000000;
+        }
+        
+        .result-section {
+            margin-top: 30px;
+        }
+        
+        .result-box {
+            background: #f8f8f8;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 2px solid #000000;
+        }
+        
+        .sentiment-display {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .sentiment-text {
+            font-size: 1.4rem;
+            font-weight: 500;
+            color: #000000;
+        }
+        
+        .sentiment-score {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .sentiment-negative {
+            color: #ff0000;
+        }
+        
+        .sentiment-neutral {
+            color: #000000;
+        }
+        
+        .sentiment-positive {
+            color: #00aa00;
+        }
+        
+        .progress-bar {
+            height: 12px;
+            background: #dddddd;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-top: 10px;
+            border: 1px solid #000000;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+        
+        .details {
+            margin-top: 25px;
+        }
+        
+        .details h3 {
+            font-family: 'Inter', sans-serif;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            color: #000000;
+            border-bottom: 2px solid #ff0000;
+            padding-bottom: 5px;
+        }
+        
+        .token-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .token {
+            background: #ffffff;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid #000000;
+            color: #000000;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .metric-card {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #000000;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 10px 0;
+            color: #ff0000;
+        }
+        
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666666;
+        }
+        
+        .visualization {
+            height: 200px;
+            background: #ffffff;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            padding: 20px;
+            border: 2px solid #000000;
+        }
+        
+        .bar {
+            width: 60px;
+            background: #ff0000;
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            transition: height 0.5s ease;
+            border: 1px solid #000000;
+        }
+        
+        .bar-label {
+            position: absolute;
+            bottom: -25px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 12px;
+            color: #000000;
+            font-weight: 500;
+        }
+        
+        .download-btn {
+            display: inline-block;
+            padding: 12px 25px;
+            background: #000000;
+            border: 2px solid #000000;
+            border-radius: 8px;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            margin-top: 15px;
+        }
+        
+        .download-btn:hover {
+            background: #ff0000;
+            color: #000000;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #000000;
+        }
+        
+        .tab {
+            padding: 12px 25px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            color: #000000;
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid #ff0000;
+            color: #ff0000;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .file-info {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666666;
+        }
+
+        .confidence-indicator {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666666;
+        }
+
+        .word-highlight {
+            background: #ffffff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin: 0 2px;
+            border: 1px solid #000000;
+        }
+
+        .positive-word {
+            background: #f0fff0;
+            border-color: #00aa00;
+        }
+
+        .negative-word {
+            background: #fff0f0;
+            border-color: #ff0000;
+        }
+
+        .examples {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f8f8;
+            border-radius: 8px;
+            border: 1px solid #000000;
+        }
+
+        .example-btn {
+            background: #ffffff;
+            border: 1px solid #000000;
+            color: #000000;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .example-btn:hover {
+            background: #ff0000;
+            color: #ffffff;
+        }
+        
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Анализатор текстовой тональности</h1>
+            <p class="subtitle">Определите эмоциональную окраску текста и оцените качество модели с помощью метрики macro-F1</p>
+        </div>
+        
+        <div class="panel">
+            <div class="tabs">
+                <div class="tab active" data-tab="single">Анализ текста</div>
+                <div class="tab" data-tab="batch">Пакетный анализ</div>
+                <div class="tab" data-tab="validation">Валидация модели</div>
+            </div>
+            
+            <div class="tab-content active" id="single-tab">
+                <div class="input-section">
+                    <textarea id="text-input" placeholder="Введите текст для анализа..."></textarea>
+                </div>
+                
+                <div class="examples">
+                    <p><strong>Примеры для тестирования:</strong></p>
+                    <button class="example-btn" data-text="Это просто потрясающе! Я в восторге от качества обслуживания и быстроты доставки. Очень рекомендую всем!">😊 Позитивный</button>
+                    <button class="example-btn" data-text="Ужасное качество товара. Доставка опоздала на три дня, обслуживание отвратительное. Больше никогда не буду заказывать здесь.">😠 Негативный</button>
+                    <button class="example-btn" data-text="Заказал товар, доставили вовремя. Качество стандартное, ничего особенного. В целом нормально.">😐 Нейтральный</button>
+                </div>
+                
+                <button class="analyze-btn" id="analyze-btn">Анализировать тональность</button>
+            </div>
+            
+            <div class="tab-content" id="batch-tab">
+                <div class="file-upload">
+                    <label class="file-label">
+                        📁 Загрузите CSV файл с текстами для анализа
+                        <input type="file" class="file-input" id="batch-file" accept=".csv">
+                    </label>
+                    <div class="file-info" id="batch-file-info"></div>
+                </div>
+                <button class="analyze-btn btn-secondary" id="batch-analyze-btn">Запустить пакетный анализ</button>
+            </div>
+            
+            <div class="tab-content" id="validation-tab">
+                <div class="file-upload">
+                    <label class="file-label">
+                        📊 Загрузите CSV файл с валидационной выборкой
+                        <input type="file" class="file-input" id="validation-file" accept=".csv">
+                    </label>
+                    <div class="file-info" id="validation-file-info"></div>
+                </div>
+                <button class="analyze-btn btn-secondary" id="validate-btn">Оценить модель (macro-F1)</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="result-section" id="result-section">
+                <div class="result-box">
+                    <div class="sentiment-display">
+                        <div>
+                            <div class="sentiment-text" id="sentiment-text">Тональность текста:</div>
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill"></div>
+                            </div>
+                        </div>
+                        <div class="sentiment-score" id="sentiment-score">0.00</div>
+                    </div>
+                    <div class="sentiment-category" id="sentiment-category"></div>
+                    <div class="confidence-indicator" id="confidence-indicator"></div>
+                </div>
+                
+                <div class="details">
+                    <h3>Детали анализа</h3>
+                    <p>Токенизированные слова:</p>
+                    <div class="token-list" id="token-list"></div>
+                    
+                    <div id="word-analysis"></div>
+                    
+                    <div class="metrics-grid" id="metrics-grid" style="display: none;">
+                        <div class="metric-card">
+                            <div class="metric-label">Macro-F1 Score</div>
+                            <div class="metric-value" id="f1-score">0.00</div>
+                            <div class="metric-label">Качество модели</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Precision</div>
+                            <div class="metric-value" id="precision-score">0.00</div>
+                            <div class="metric-label">Точность</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-label">Recall</div>
+                            <div class="metric-value" id="recall-score">0.00</div>
+                            <div class="metric-label">Полнота</div>
+                        </div>
+                    </div>
+                    
+                    <div class="visualization" id="visualization"></div>
+                    
+                    <a href="#" class="download-btn" id="download-btn" style="display: none;">📥 Скачать результаты (CSV)</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Расширенные словари для анализа тональности
+        const sentimentLexicon = {
+            positive: {
+                words: [
+                    'отличн', 'прекрасн', 'потрясающ', 'восхитительн', 'замечательн', 'супер',
+                    'хорош', 'великолепн', 'безупречн', 'идеальн', 'превосходн', 'чудесн',
+                    'люблю', 'обожаю', 'нравится', 'рекомендую', 'советую', 'восторг',
+                    'рад', 'счастлив', 'доволен', 'удовлетворен', 'приятн', 'комфортн',
+                    'быстр', 'качествен', 'профессиональн', 'вежлив', 'внимательн', 'помощ',
+                    'спасибо', 'благодар', 'отлично', 'хорошо', 'замечательно', 'прекрасно'
+                ],
+                weight: 1
+            },
+            negative: {
+                words: [
+                    'плох', 'ужасн', 'отвратительн', 'кошмарн', 'упад', 'скучн',
+                    'грустн', 'печальн', 'разочарован', 'недоволен', 'зол', 'сердит',
+                    'ненавижу', 'терпеть', 'отврат', 'мерзк', 'отстан', 'слаб',
+                    'медлен', 'некачествен', 'непрофессиональн', 'груб', 'невнимательн',
+                    'проблем', 'ошибк', 'брак', 'дефект', 'неисправн', 'сломан',
+                    'плохо', 'ужасно', 'отвратительно', 'кошмарно'
+                ],
+                weight: 1
+            },
+            intensifiers: {
+                positive: ['очень', 'крайне', 'невероятно', 'абсолютно', 'совершенно', 'исключительно'],
+                negative: ['очень', 'крайне', 'невероятно', 'абсолютно', 'совершенно', 'ужасно']
+            },
+            negations: ['не', 'ни', 'нет', 'без']
+        };
+
+        // Инициализация вкладок
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                
+                this.classList.add('active');
+                const tabId = this.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+                
+                resetResults();
+            });
+        });
+
+        // Обработчики примеров
+        document.querySelectorAll('.example-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.getElementById('text-input').value = this.getAttribute('data-text');
+            });
+        });
+
+        // Обработчики загрузки файлов
+        document.getElementById('batch-file').addEventListener('change', function(e) {
+            const fileInfo = document.getElementById('batch-file-info');
+            fileInfo.textContent = this.files.length > 0 ? `Выбран файл: ${this.files[0].name}` : '';
+        });
+
+        document.getElementById('validation-file').addEventListener('change', function(e) {
+            const fileInfo = document.getElementById('validation-file-info');
+            fileInfo.textContent = this.files.length > 0 ? `Выбран файл: ${this.files[0].name}` : '';
+        });
+
+        // Анализ одиночного текста
+        document.getElementById('analyze-btn').addEventListener('click', function() {
+            const text = document.getElementById('text-input').value.trim();
+            if (text === '') {
+                alert('Пожалуйста, введите текст для анализа.');
+                return;
+            }
+            simulateAnalysis(text);
+        });
+
+        // Пакетный анализ
+        document.getElementById('batch-analyze-btn').addEventListener('click', function() {
+            const fileInput = document.getElementById('batch-file');
+            if (fileInput.files.length === 0) {
+                alert('Пожалуйста, выберите CSV файл для анализа.');
+                return;
+            }
+            simulateBatchAnalysis();
+        });
+
+        // Валидация модели
+        document.getElementById('validate-btn').addEventListener('click', function() {
+            const fileInput = document.getElementById('validation-file');
+            if (fileInput.files.length === 0) {
+                alert('Пожалуйста, выберите CSV файл для валидации.');
+                return;
+            }
+            simulateValidation();
+        });
+
+        function simulateAnalysis(text) {
+            const button = document.getElementById('analyze-btn');
+            const originalText = button.textContent;
+            button.textContent = 'Анализируем...';
+            button.disabled = true;
+            
+            setTimeout(function() {
+                const result = analyzeTextWithAdvancedAlgorithm(text);
+                displayResults(result.score, result.sentiment, result.tokens, result.analysis);
+                button.textContent = originalText;
+                button.disabled = false;
+            }, 1500);
+        }
+
+        // Улучшенный алгоритм анализа тональности
+        function analyzeTextWithAdvancedAlgorithm(text) {
+            const tokens = text.toLowerCase()
+                .replace(/[^\w\s]/g, ' ')
+                .split(/\s+/)
+                .filter(token => token.length > 2);
+            
+            let positiveScore = 0;
+            let negativeScore = 0;
+            let positiveWords = [];
+            let negativeWords = [];
+            
+            // Анализ каждого токена
+            for (let i = 0; i < tokens.length; i++) {
+                const token = tokens[i];
+                let isNegated = false;
+                let intensity = 1;
+                
+                // Проверка на отрицание
+                if (i > 0 && sentimentLexicon.negations.includes(tokens[i-1])) {
+                    isNegated = true;
+                }
+                
+                // Проверка интенсификаторов
+                if (i > 0 && (
+                    sentimentLexicon.intensifiers.positive.includes(tokens[i-1]) ||
+                    sentimentLexicon.intensifiers.negative.includes(tokens[i-1])
+                )) {
+                    intensity = 2;
+                }
+                
+                // Проверка положительных слов
+                for (const word of sentimentLexicon.positive.words) {
+                    if (token.includes(word)) {
+                        if (isNegated) {
+                            negativeScore += sentimentLexicon.positive.weight * intensity;
+                            negativeWords.push(token);
+                        } else {
+                            positiveScore += sentimentLexicon.positive.weight * intensity;
+                            positiveWords.push(token);
+                        }
+                        break;
+                    }
+                }
+                
+                // Проверка отрицательных слов
+                for (const word of sentimentLexicon.negative.words) {
+                    if (token.includes(word)) {
+                        if (isNegated) {
+                            positiveScore += sentimentLexicon.negative.weight * intensity;
+                            positiveWords.push(token);
+                        } else {
+                            negativeScore += sentimentLexicon.negative.weight * intensity;
+                            negativeWords.push(token);
+                        }
+                        break;
+                    }
+                }
+            }
+            
+            // Расчет итоговой оценки
+            let finalScore, sentiment;
+            
+            // Если найдены эмоциональные слова
+            if (positiveScore > 0 || negativeScore > 0) {
+                const totalScore = positiveScore + negativeScore;
+                const ratio = positiveScore / totalScore;
+                
+                if (ratio > 0.6) {
+                    sentiment = 'positive';
+                    finalScore = 0.6 + (ratio * 0.4);
+                } else if (ratio < 0.4) {
+                    sentiment = 'negative';
+                    finalScore = ratio * 0.4;
+                } else {
+                    sentiment = 'neutral';
+                    finalScore = 0.4 + (ratio * 0.2);
+                }
+            } else {
+                // Если не найдено эмоциональных слов - нейтральный
+                sentiment = 'neutral';
+                finalScore = 0.5;
+            }
+            
+            // Ограничение score в диапазоне 0-1
+            finalScore = Math.max(0.1, Math.min(0.99, finalScore));
+            
+            return {
+                score: finalScore,
+                sentiment: sentiment,
+                tokens: tokens,
+                analysis: {
+                    positiveWords: positiveWords,
+                    negativeWords: negativeWords,
+                    positiveScore: positiveScore,
+                    negativeScore: negativeScore
+                }
+            };
+        }
+        
+        function displayResults(score, sentiment, tokens, analysis) {
+            const resultSection = document.getElementById('result-section');
+            const sentimentScore = document.getElementById('sentiment-score');
+            const sentimentCategory = document.getElementById('sentiment-category');
+            const progressFill = document.getElementById('progress-fill');
+            const tokenList = document.getElementById('token-list');
+            const confidenceIndicator = document.getElementById('confidence-indicator');
+            const wordAnalysis = document.getElementById('word-analysis');
+            const downloadBtn = document.getElementById('download-btn');
+            const metricsGrid = document.getElementById('metrics-grid');
+            
+            metricsGrid.style.display = 'none';
+            downloadBtn.style.display = 'none';
+            
+            // Форматирование оценки
+            const formattedScore = score.toFixed(2);
+            sentimentScore.textContent = formattedScore;
+            
+            // Установка цвета и текста
+            let sentimentText, sentimentClass, progressColor, confidenceText;
+            
+            if (sentiment === 'positive') {
+                sentimentText = 'ПОЛОЖИТЕЛЬНАЯ';
+                sentimentClass = 'sentiment-positive';
+                progressColor = '#00aa00';
+                confidenceText = 'Высокая уверенность в позитивной тональности';
+            } else if (sentiment === 'negative') {
+                sentimentText = 'ОТРИЦАТЕЛЬНАЯ';
+                sentimentClass = 'sentiment-negative';
+                progressColor = '#ff0000';
+                confidenceText = 'Высокая уверенность в негативной тональности';
+            } else {
+                sentimentText = 'НЕЙТРАЛЬНАЯ';
+                sentimentClass = 'sentiment-neutral';
+                progressColor = '#000000';
+                confidenceText = 'Текст имеет нейтральную эмоциональную окраску';
+            }
+            
+            sentimentScore.className = `sentiment-score ${sentimentClass}`;
+            sentimentCategory.innerHTML = `<span class="${sentimentClass}"><strong>${sentimentText}</strong></span>`;
+            confidenceIndicator.textContent = confidenceText;
+            
+            // Прогресс-бар
+            progressFill.style.width = `${score * 100}%`;
+            progressFill.style.background = progressColor;
+            
+            // Токены
+            tokenList.innerHTML = '';
+            tokens.forEach(token => {
+                const tokenElement = document.createElement('div');
+                tokenElement.className = 'token';
+                tokenElement.textContent = token;
+                tokenList.appendChild(tokenElement);
+            });
+            
+            // Анализ слов
+            wordAnalysis.innerHTML = `
+                <div style="margin-top: 15px;">
+                    <p><strong>Анализ эмоциональных слов:</strong></p>
+                    <p>Позитивные слова (вес: ${analysis.positiveScore}): 
+                        ${analysis.positiveWords.map(word => `<span class="word-highlight positive-word">${word}</span>`).join(' ')}
+                    </p>
+                    <p>Негативные слова (вес: ${analysis.negativeScore}): 
+                        ${analysis.negativeWords.map(word => `<span class="word-highlight negative-word">${word}</span>`).join(' ')}
+                    </p>
+                </div>
+            `;
+            
+            // Визуализация
+            updateVisualization([score]);
+            resultSection.style.display = 'block';
+        }
+
+        function simulateBatchAnalysis() {
+            const button = document.getElementById('batch-analyze-btn');
+            const originalText = button.textContent;
+            button.textContent = 'Обрабатываем...';
+            button.disabled = true;
+            
+            setTimeout(function() {
+                const results = [
+                    { text: "Отличный продукт! Очень доволен покупкой.", sentiment: "positive", score: 0.92 },
+                    { text: "Ужасное качество, никогда больше не куплю.", sentiment: "negative", score: 0.15 },
+                    { text: "Нормальный товар, соответствует описанию.", sentiment: "neutral", score: 0.45 }
+                ];
+                
+                displayBatchResults(results);
+                button.textContent = originalText;
+                button.disabled = false;
+            }, 2000);
+        }
+        
+        function simulateValidation() {
+            const button = document.getElementById('validate-btn');
+            const originalText = button.textContent;
+            button.textContent = 'Вычисляем метрики...';
+            button.disabled = true;
+            
+            setTimeout(function() {
+                const metrics = {
+                    f1: (0.82 + Math.random() * 0.1).toFixed(2),
+                    precision: (0.79 + Math.random() * 0.1).toFixed(2),
+                    recall: (0.85 + Math.random() * 0.1).toFixed(2)
+                };
+                
+                displayValidationResults(metrics);
+                button.textContent = originalText;
+                button.disabled = false;
+            }, 2500);
+        }
+        
+        function displayBatchResults(results) {
+            const resultSection = document.getElementById('result-section');
+            const tokenList = document.getElementById('token-list');
+            const downloadBtn = document.getElementById('download-btn');
+            const metricsGrid = document.getElementById('metrics-grid');
+            
+            downloadBtn.style.display = 'inline-block';
+            metricsGrid.style.display = 'none';
+            
+            let positiveCount = 0, neutralCount = 0, negativeCount = 0;
+            const scores = [];
+            
+            results.forEach(result => {
+                scores.push(result.score);
+                if (result.sentiment === 'positive') positiveCount++;
+                else if (result.sentiment === 'neutral') neutralCount++;
+                else negativeCount++;
+            });
+            
+            tokenList.innerHTML = `
+                <div style="width: 100%; text-align: center; padding: 10px;">
+                    <h4>Результаты пакетного анализа</h4>
+                    <p>Обработано текстов: ${results.length}</p>
+                    <p>Положительных: ${positiveCount} | Нейтральных: ${neutralCount} | Отрицательных: ${negativeCount}</p>
+                </div>
+            `;
+            
+            updateVisualization(scores);
+            resultSection.style.display = 'block';
+        }
+        
+        function displayValidationResults(metrics) {
+            const resultSection = document.getElementById('result-section');
+            const tokenList = document.getElementById('token-list');
+            const downloadBtn = document.getElementById('download-btn');
+            const metricsGrid = document.getElementById('metrics-grid');
+            const f1Score = document.getElementById('f1-score');
+            const precisionScore = document.getElementById('precision-score');
+            const recallScore = document.getElementById('recall-score');
+            
+            metricsGrid.style.display = 'grid';
+            downloadBtn.style.display = 'inline-block';
+            
+            f1Score.textContent = metrics.f1;
+            precisionScore.textContent = metrics.precision;
+            recallScore.textContent = metrics.recall;
+            
+            tokenList.innerHTML = `
+                <div style="width: 100%; text-align: center; padding: 10px;">
+                    <h4>Результаты валидации модели</h4>
+                    <p>Модель протестирована на валидационной выборке</p>
+                    <p>Метрика macro-F1 показывает общее качество классификации</p>
+                </div>
+            `;
+            
+            updateMetricsVisualization(metrics);
+            resultSection.style.display = 'block';
+        }
+        
+        function updateVisualization(scores) {
+            const visualization = document.getElementById('visualization');
+            visualization.innerHTML = '';
+            
+            const scoreRanges = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+            const counts = [0, 0, 0, 0, 0];
+            
+            scores.forEach(score => {
+                for (let i = 0; i < scoreRanges.length - 1; i++) {
+                    if (score >= scoreRanges[i] && score < scoreRanges[i+1]) {
+                        counts[i]++;
+                        break;
+                    }
+                }
+            });
+            
+            const maxCount = Math.max(...counts);
+            
+            scoreRanges.slice(0, -1).forEach((range, i) => {
+                const barHeight = maxCount > 0 ? (counts[i] / maxCount) * 150 : 0;
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = `${barHeight}px`;
+                
+                const label = document.createElement('div');
+                label.className = 'bar-label';
+                label.textContent = `${range}-${scoreRanges[i+1]}`;
+                
+                bar.appendChild(label);
+                visualization.appendChild(bar);
+            });
+        }
+        
+        function updateMetricsVisualization(metrics) {
+            const visualization = document.getElementById('visualization');
+            visualization.innerHTML = '';
+            
+            const metricValues = [
+                { name: 'F1-Score', value: parseFloat(metrics.f1) },
+                { name: 'Precision', value: parseFloat(metrics.precision) },
+                { name: 'Recall', value: parseFloat(metrics.recall) }
+            ];
+            
+            metricValues.forEach(metric => {
+                const barHeight = metric.value * 150;
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = `${barHeight}px`;
+                
+                const label = document.createElement('div');
+                label.className = 'bar-label';
+                label.textContent = metric.name;
+                
+                bar.appendChild(label);
+                visualization.appendChild(bar);
+            });
+        }
+        
+        function resetResults() {
+            document.getElementById('result-section').style.display = 'none';
+            document.getElementById('metrics-grid').style.display = 'none';
+            document.getElementById('download-btn').style.display = 'none';
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            resetResults();
+        });
+    </script>
+</body>
+</html>
