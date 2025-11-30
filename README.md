@@ -6,6 +6,8 @@ import pandas as pd
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from sklearn.metrics import f1_score
+
+так же в репозитории есть файл - mainFINAL.ipynb - это скрипт который обучал модель.
 # Ссылка на видео
 
 # Состав команды
