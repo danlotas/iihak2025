@@ -1,31 +1,64 @@
+import torch
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import pandas as pd
-import torch
 import numpy as np
 import torch.nn.functional as F
 from sklearn.metrics import f1_score
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
+# =====================================================
+# 🔧 ОПТИМИЗАЦИЯ ПОД RENDER FREE
+# =====================================================
+torch.set_num_threads(1)  # сильно снижает нагрузку CPU
+MODEL_PATH = "./bert_model"
+
+# =====================================================
+# 🚀 FASTAPI APP
+# =====================================================
 app = FastAPI()
 
-# Разрешаем вызовы с фронтенда
+# Разрешаем фронтенд
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],       # можно ограничить вашим доменом
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# ==== загрузка модели ======
-MODEL_PATH = "./bert_model"
+# =====================================================
+# 📦 ПОДКЛЮЧАЕМ СТАТИКУ И index.html
+# =====================================================
+
+# Монтируем директорию frontend/ как статик
+app.mount("/static", StaticFiles(directory="frontend"), name="static")
+
+# Отдаем главную страницу
+@app.get("/")
+async def root():
+    return FileResponse("frontend/index.html")
+
+
+# =====================================================
+# 📚 ЗАГРУЗКА МОДЕЛИ (оптимизировано)
+# =====================================================
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+
+model = AutoModelForSequenceClassification.from_pretrained(
+    MODEL_PATH,
+    low_cpu_mem_usage=True,
+    torch_dtype=torch.float32
+)
+
 model.eval()
 
 
-# ========= 1) Анализ одного текста =========
+# =====================================================
+# 1️⃣ API — анализ одного текста
+# =====================================================
 @app.post("/predict_text")
 async def predict_text_api(text: str = Form(...)):
 
@@ -53,7 +86,9 @@ async def predict_text_api(text: str = Form(...)):
     }
 
 
-# ========= 2) Анализ CSV =========
+# =====================================================
+# 2️⃣ API — пакетный анализ CSV
+# =====================================================
 @app.post("/predict_csv")
 async def predict_csv_api(file: UploadFile = File(...)):
     df = pd.read_csv(file.file)
@@ -61,10 +96,7 @@ async def predict_csv_api(file: UploadFile = File(...)):
     if "text" not in df.columns:
         return {"error": "CSV must contain 'text' column"}
 
-    preds = []
-    negs = []
-    neuts = []
-    poss = []
+    preds, negs, neuts, poss = [], [], [], []
 
     for t in df["text"]:
         tokens = tokenizer(
@@ -89,11 +121,12 @@ async def predict_csv_api(file: UploadFile = File(...)):
     df["prob_neu"] = neuts
     df["prob_pos"] = poss
 
-    # вернуть JSON
     return df.to_dict(orient="records")
 
 
-# ========= 3) Оценка модели по CSV =========
+# =====================================================
+# 3️⃣ API — валидация модели по CSV
+# =====================================================
 @app.post("/evaluate_csv")
 async def evaluate_csv_api(file: UploadFile = File(...)):
     df = pd.read_csv(file.file)
@@ -119,4 +152,4 @@ async def evaluate_csv_api(file: UploadFile = File(...)):
 
     macro_f1 = f1_score(df["label"], df["pred"], average="macro")
 
-    return {"macro_f1": macro_f1}
+    return {"macro_f1": float(macro_f1)}
