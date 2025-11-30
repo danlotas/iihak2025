@@ -1,7 +1,6 @@
-// === URL вашего FastAPI backend ===
-// ПРИМЕР:     "https://sentiment-backend.onrender.com"
-// ПОКА:       Локально можно ставить http://localhost:8000
-const API_URL = "const API_URL = "https://iihak2025.onrender.com";
+// ========== URL вашего FastAPI backend ==========
+const API_URL = window.location.origin; 
+// пример: https://iihak2025.onrender.com
 
 
 // -----------------------------
@@ -16,7 +15,7 @@ async function analyzeTextAPI(text) {
         body: formData
     });
 
-    return response.json();
+    return await response.json();
 }
 
 
@@ -32,12 +31,12 @@ async function analyzeCSVAPI(file) {
         body: formData
     });
 
-    return response.json();
+    return await response.json();
 }
 
 
 // -----------------------------
-// 3) Оценка качества модели
+// 3) Оценка модели по CSV
 // -----------------------------
 async function evaluateCSVAPI(file) {
     const formData = new FormData();
@@ -48,7 +47,7 @@ async function evaluateCSVAPI(file) {
         body: formData
     });
 
-    return response.json();
+    return await response.json();
 }
 
 
@@ -95,7 +94,7 @@ document.getElementById('analyze-btn').addEventListener('click', async () => {
     btn.disabled = false;
     btn.textContent = "Анализировать тональность";
 
-    displayBERTSingleResult(result);
+    displaySingleResult(result);
 });
 
 
@@ -115,12 +114,12 @@ document.getElementById('batch-analyze-btn').addEventListener('click', async () 
     btn.disabled = false;
     btn.textContent = "Запустить пакетный анализ";
 
-    displayBERTBatchResult(result);
+    displayBatchResult(result);
 });
 
 
 // =============================
-// КНОПКА 3 — валидация модели
+// КНОПКА 3 — валидация CSV
 // =============================
 document.getElementById('validate-btn').addEventListener('click', async () => {
     const file = document.getElementById('validation-file').files[0];
@@ -135,7 +134,7 @@ document.getElementById('validate-btn').addEventListener('click', async () => {
     btn.disabled = false;
     btn.textContent = "Оценить модель (macro-F1)";
 
-    displayBERTEvaluation(result);
+    displayMetrics(result);
 });
 
 
@@ -144,7 +143,7 @@ document.getElementById('validate-btn').addEventListener('click', async () => {
 // ====================================
 
 // --- 1. одиночный текст ---
-function displayBERTSingleResult(res) {
+function displaySingleResult(res) {
     const sentimentScore = document.getElementById("sentiment-score");
     const sentimentCategory = document.getElementById("sentiment-category");
     const progressFill = document.getElementById("progress-fill");
@@ -155,32 +154,33 @@ function displayBERTSingleResult(res) {
 
     const classNames = ["Негатив", "Нейтрально", "Позитив"];
 
-    sentimentScore.textContent = probs[classNames.indexOf(pred)]?.toFixed(2);
     sentimentCategory.textContent = classNames[pred];
 
-    const probValue = Math.max(...Object.values(probs));
-    progressFill.style.width = `${probValue * 100}%`;
+    // берем максимальную вероятность
+    const maxProb = Math.max(...Object.values(probs));
 
-    confidenceIndicator.textContent = `Уверенность модели: ${(probValue * 100).toFixed(1)}%`;
+    sentimentScore.textContent = maxProb.toFixed(2);
+    progressFill.style.width = `${maxProb * 100}%`;
+    confidenceIndicator.textContent = `Уверенность модели: ${(maxProb * 100).toFixed(1)}%`;
 
     document.getElementById("result-section").style.display = "block";
 }
 
 
 // --- 2. пакетный CSV анализ ---
-function displayBERTBatchResult(results) {
+function displayBatchResult(results) {
     document.getElementById("token-list").innerHTML =
         `<p>Обработано строк: ${results.length}</p>`;
 
     document.getElementById("download-btn").style.display = "inline-block";
-
     document.getElementById("result-section").style.display = "block";
 }
 
 
 // --- 3. валидация модели ---
-function displayBERTEvaluation(result) {
+function displayMetrics(result) {
     document.getElementById("f1-score").textContent = result.macro_f1.toFixed(3);
+
     document.getElementById("metrics-grid").style.display = "grid";
     document.getElementById("result-section").style.display = "block";
 }
