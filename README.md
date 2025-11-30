@@ -1,6 +1,11 @@
 # iihak2025
 # Описание проекта
-
+Проект представляет собой десктоп приложение, в котором реализована работа модели, определяющей тональность текста. В приложении имеется 3 кнопки: оценить 1 отзыв, загрузить csv файл с отзывами и валидация для проверки работы модели. При разработке приложения использовались библеотеки 
+import streamlit as st
+import pandas as pd
+import torch
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from sklearn.metrics import f1_score
 # Ссылка на видео
 
 # Состав команды
