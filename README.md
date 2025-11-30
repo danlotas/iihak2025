@@ -9,7 +9,7 @@ from sklearn.metrics import f1_score
 
 так же в репозитории есть файл - mainFINAL.ipynb - это скрипт который обучал модель.
 # Ссылка на видео
-
+https://drive.google.com/file/d/1uwp4B8ABw37qiWvGrECTN65N9R8-Y-uC/view?usp=sharing
 # Состав команды
 Денисов Артем - фронтенд
 Юдина Валерия - бэкенд и аналитика
