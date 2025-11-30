@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import os
 
-# Запускаем streamlit через subprocess, который работает одинаково на Windows/Mac/Linux
-subprocess.run([sys.executable, "-m", "streamlit", "run", "app.py"])
+file = os.path.join(os.path.dirname(__file__), "app.py")
+subprocess.run([sys.executable, "-m", "streamlit", "run", file])
