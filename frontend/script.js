@@ -1,7 +1,7 @@
 // === URL вашего FastAPI backend ===
 // ПРИМЕР:     "https://sentiment-backend.onrender.com"
 // ПОКА:       Локально можно ставить http://localhost:8000
-const API_URL = "http://localhost:8000";
+const API_URL = "const API_URL = "https://iihak2025.onrender.com";
 
 
 // -----------------------------
