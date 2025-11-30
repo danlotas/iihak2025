@@ -1,64 +1,53 @@
-import torch
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 import pandas as pd
+import torch
 import numpy as np
 import torch.nn.functional as F
 from sklearn.metrics import f1_score
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import os
 
-# =====================================================
-# 🔧 ОПТИМИЗАЦИЯ ПОД RENDER FREE
-# =====================================================
-torch.set_num_threads(1)  # сильно снижает нагрузку CPU
-MODEL_PATH = "./bert_model"
-
-# =====================================================
-# 🚀 FASTAPI APP
-# =====================================================
 app = FastAPI()
 
-# Разрешаем фронтенд
+# --------------------------------------
+#  STATIC — подключаем фронтенд
+# --------------------------------------
+FRONTEND_DIR = os.path.join(os.getcwd(), "frontend")
+
+# Все файлы (script.js, css, картинки)
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+# Главная страница
+@app.get("/")
+async def serve_index():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+# --------------------------------------
+#  CORS (разрешаем фронтенду обращаться к API)
+# --------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  
+    allow_origins=["*"],   # можешь заменить на свой URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# =====================================================
-# 📦 ПОДКЛЮЧАЕМ СТАТИКУ И index.html
-# =====================================================
+# --------------------------------------
+#  МОДЕЛЬ
+# --------------------------------------
+MODEL_PATH = "./bert_model"
 
-# Монтируем директорию frontend/ как статик
-app.mount("/static", StaticFiles(directory="frontend"), name="static")
-
-# Отдаем главную страницу
-@app.get("/")
-async def root():
-    return FileResponse("frontend/index.html")
-
-
-# =====================================================
-# 📚 ЗАГРУЗКА МОДЕЛИ (оптимизировано)
-# =====================================================
 tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-
-model = AutoModelForSequenceClassification.from_pretrained(
-    MODEL_PATH,
-    low_cpu_mem_usage=True,
-    torch_dtype=torch.float32
-)
-
+model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
 model.eval()
 
-
-# =====================================================
-# 1️⃣ API — анализ одного текста
-# =====================================================
+# --------------------------------------
+# 1) Анализ одного текста
+# --------------------------------------
 @app.post("/predict_text")
 async def predict_text_api(text: str = Form(...)):
 
@@ -85,10 +74,9 @@ async def predict_text_api(text: str = Form(...)):
         }
     }
 
-
-# =====================================================
-# 2️⃣ API — пакетный анализ CSV
-# =====================================================
+# --------------------------------------
+# 2) Анализ CSV
+# --------------------------------------
 @app.post("/predict_csv")
 async def predict_csv_api(file: UploadFile = File(...)):
     df = pd.read_csv(file.file)
@@ -96,7 +84,10 @@ async def predict_csv_api(file: UploadFile = File(...)):
     if "text" not in df.columns:
         return {"error": "CSV must contain 'text' column"}
 
-    preds, negs, neuts, poss = [], [], [], []
+    preds = []
+    negs = []
+    neuts = []
+    poss = []
 
     for t in df["text"]:
         tokens = tokenizer(
@@ -123,10 +114,9 @@ async def predict_csv_api(file: UploadFile = File(...)):
 
     return df.to_dict(orient="records")
 
-
-# =====================================================
-# 3️⃣ API — валидация модели по CSV
-# =====================================================
+# --------------------------------------
+# 3) Оценка качества модели (F1)
+# --------------------------------------
 @app.post("/evaluate_csv")
 async def evaluate_csv_api(file: UploadFile = File(...)):
     df = pd.read_csv(file.file)
